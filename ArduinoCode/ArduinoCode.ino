@@ -1,15 +1,15 @@
-#include <bluefruit.h>
+#include <bluefruit.h> // Need the bluefruit library, as this is a Bluetooth comptatible device
 
-#include <Adafruit_DotStar.h>
+#include <Adafruit_DotStar.h> // Need the DotStar library, as that is the rane of LED strip being utilised
 #include <SPI.h>
 
-#define NUMPIXELS 48
+#define NUMPIXELS 48 // Defines the total number of LEDs
 
-#define DATAPIN    16
-#define CLOCKPIN   15
+#define DATAPIN    16 // Defines which pin is utilised for Data
+#define CLOCKPIN   15 // Defines which pin is utilised for Clock
 
 Adafruit_DotStar strip = Adafruit_DotStar(
-                           NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BRG);
+                           NUMPIXELS, DATAPIN, CLOCKPIN, DOTSTAR_BRG); // Defines the strip
 
 BLEUart bleuart;
 
@@ -17,20 +17,29 @@ BLEUart bleuart;
 uint8_t readPacket (BLEUart *ble_uart, uint16_t timeout);
 float   parsefloat (uint8_t *buffer);
 void    printHex   (const uint8_t * data, const uint32_t numBytes);
+
+// Predefined colour, utilised on initialisation
 uint32_t paleBlue = strip.Color(241, 66, 244);
+// Variable that holds the current colour, initalises with 'Pale Blue'
 uint32_t currentColour = paleBlue;
-int totalSteps = 20;
+
+// Utilised in tracking the time
 unsigned long currentMillis = millis();
+// Used to remember when last event occured
 unsigned long previousMillis = millis();
+
+// Variable utilised in determining the brightness of the LEDs
 int strength = 0;
+
+// Variable utilised in detemining the speed of the animations
 int speedFactor = 4;
-int largestX = 0;
-int largestY = 0;
-int largestZ = 0;
+
+// Variables to store the individual RGB components of a colour
 uint8_t red = 0;
 uint8_t green = 0;
 uint8_t blue = 0;
 
+// Arrays that define the LEDs associates with each step of the animation
 int state1[9] = {5, 6, 7, 8, 10, 16, 24, 28, 32};
 int state2[21] = {1, 2, 4, 9, 11, 15, 17, 20, 23, 25, 27, 29, 31, 33, 36, 39, 40, 44, 45, 46, 47};
 int state3[18] = {0, 3, 12, 13, 14, 18, 19, 21, 22, 26, 30, 34, 35, 37, 38, 41, 42, 43};
@@ -40,6 +49,7 @@ extern uint8_t packetbuffer[];
 
 void setup(void)
 {
+  // Anything involving Serial is for monitoring purposes, they can be viewed in the Serial Monitor
   Serial.begin(115200);
   while ( !Serial ) delay(10);   // for nrf52840 with native usb
 
@@ -61,13 +71,13 @@ void setup(void)
   Serial.println(F("Then activate/use the sensors, color picker, game controller, etc!"));
   Serial.println();
 
-  // put your setup code here, to run once:
   strip.begin(); // Initialize pins for output
   strip.show();  // Turn all LEDs off ASAP
 }
 
 void startAdv(void)
 {
+  // Code that controls the advertisment of the device
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addTxPower();
 
@@ -163,7 +173,7 @@ void secondAnimation(int strength)
   strip.show();
 }
 
-// Defines the thrid stage of the animation, brightens the thrid set, darkens the second
+// Defines the thrid stage of the animation, brightens the third set, darkens the second
 void thirdAnimation(int strength)
 {
   for (int i = 0; i <= 8; i++) {
@@ -185,6 +195,7 @@ void animationUpdate()
   currentMillis = millis();
 
   // If the time is in the first third of the available window then the first stage of the animation is run
+  // This window is determined by the speedFactor * 100 milliseconds
   if (currentMillis - previousMillis < speedFactor * 100) {
     // Strength is a percentage determined by the elapsed time
     strength = (currentMillis - previousMillis) / speedFactor;
@@ -209,26 +220,28 @@ void animationUpdate()
   }
 }
 
-// Reads the recieved packet
+// Looks for, then reads the received communication
 void packetUpdate()
 {
   Serial.println("packetUpdate");
+
+  // readPacket is a function in the 'packetParser.cpp' file
   uint8_t len = readPacket(&bleuart, 500);
 }
 
-// Main loop
+// This is the main loop, is is constantly repeated
 void loop(void)
 {
   // Reduces maximum capable brightness to 1/5th
   strip.setBrightness(255 / 5);
 
-  // Calls the function that controlls the aniamtions
+  // Calls the function that controls the aniamtions, decides on the current state
   animationUpdate();
 
-  // Calls the function that controlls the communications
+  // Calls the function that controls the communications
   packetUpdate();
 
-  // If the packet sent a new colour value
+  // If the packet simply sent a new colour value
   if (packetbuffer[1] == 'C') {
     uint8_t red = packetbuffer[2];
     uint8_t green = packetbuffer[3];
